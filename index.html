@@ -1,0 +1,611 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Labo de rotations</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : tableau tactique vu du dessus à gauche, carnet d'analyse à droite ; empilés sur téléphone. */
+:root {
+  --bg: #eef2f6;
+  --panel: #ffffff;
+  --fg: #0f1a26;
+  --muted: #586a7d;
+  --line: #d3dce6;
+  --blue: #2d74e8;
+  --blue-soft: rgba(45,116,232,.14);
+  --orange: #e8730f;
+  --orange-soft: rgba(232,115,15,.14);
+  --boost: #d39a00;
+  --turf: #dde5ec;
+  --turf-zone: rgba(45,116,232,.07);
+  --turf-line: #9fb1c3;
+  --turf-edge: #7d93a9;
+  --good: #188a5d;
+  --warn: #b26c00;
+  --bad: #cc3434;
+  --display: "Saira Condensed", "Arial Narrow", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a1118; --panel: #101a24; --fg: #e5ecf3; --muted: #8b9db0; --line: #213140;
+    --blue: #4d95ff; --blue-soft: rgba(77,149,255,.16); --orange: #ff9a3c; --orange-soft: rgba(255,154,60,.16);
+    --boost: #ffc83a; --turf: #13212e; --turf-zone: rgba(77,149,255,.08); --turf-line: #2d465c; --turf-edge: #456580;
+    --good: #3cc68d; --warn: #f0a93a; --bad: #ff6b6b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a1118; --panel: #101a24; --fg: #e5ecf3; --muted: #8b9db0; --line: #213140;
+  --blue: #4d95ff; --blue-soft: rgba(77,149,255,.16); --orange: #ff9a3c; --orange-soft: rgba(255,154,60,.16);
+  --boost: #ffc83a; --turf: #13212e; --turf-zone: rgba(77,149,255,.08); --turf-line: #2d465c; --turf-edge: #456580;
+  --good: #3cc68d; --warn: #f0a93a; --bad: #ff6b6b; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.app {
+  max-width: 1240px; margin: 0 auto; display: grid; gap: 20px;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 920px) { .app { grid-template-columns: minmax(0, 1fr) 410px; align-items: start; } }
+header.top { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-family: var(--display); font-weight: 800; font-style: italic; font-size: clamp(30px, 5vw, 44px); line-height: .95; margin: 0; letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; }
+h1 span { color: var(--blue); }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+
+.stage { min-width: 0; display: grid; gap: 12px; }
+.board { position: relative; width: 100%; max-width: max(320px, calc((100vh - 120px) * .709)); margin-inline: auto; aspect-ratio: 8792 / 12400; }
+.board canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; border-radius: 14px; display: block; }
+.hint { text-align: center; color: var(--muted); font-size: 13px; margin: 0; }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+.panel { min-width: 0; display: grid; gap: 14px; }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.label { font: 600 12px var(--display); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line); background: transparent; color: var(--fg); font: 500 14px var(--body); padding: 5px 11px; border-radius: 8px; cursor: pointer; }
+.chips button:hover { border-color: var(--blue); }
+.chips button.on { background: var(--blue-soft); border-color: var(--blue); }
+.toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 14px; }
+.toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.situation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.phase { font: 700 16px var(--display); text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 6px; background: var(--blue-soft); color: var(--blue); }
+.phase.att { background: var(--orange-soft); color: var(--orange); }
+.situation .meta { font-family: var(--mono); font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.players { display: grid; gap: 10px; }
+.pcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 6px; }
+.pcard.me { border-color: var(--blue); }
+.pc-head { display: flex; align-items: center; gap: 10px; }
+.rank { flex: none; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font: 800 italic 18px var(--display); background: var(--blue); color: #fff; }
+.pname { font: 700 18px var(--display); text-transform: uppercase; letter-spacing: .03em; }
+.role { margin-left: auto; font: 600 13px var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--blue); text-align: right; }
+.action { margin: 0; font-weight: 600; }
+.detail { margin: 0; color: var(--muted); font-size: 14px; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 2px 0 0; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.stats b { color: var(--fg); font-weight: 500; }
+.boostrow { display: grid; grid-template-columns: auto 1fr 3.2em; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+.boostrow output { font-family: var(--mono); color: var(--boost); text-align: right; font-variant-numeric: tabular-nums; }
+.boostrow input { width: 100%; accent-color: var(--boost); }
+
+.warns { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.warns li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; font-size: 14px; }
+.warns .tag { font: 700 11px var(--display); text-transform: uppercase; letter-spacing: .1em; padding: 2px 7px; border-radius: 5px; color: #fff; margin-top: 2px; }
+.tag.bad { background: var(--bad); } .tag.warn { background: var(--warn); } .tag.good { background: var(--good); }
+
+
+details.rules summary { cursor: pointer; font: 700 15px var(--display); text-transform: uppercase; letter-spacing: .06em; }
+details.rules ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; }
+details.rules li::marker { font-family: var(--display); font-weight: 700; color: var(--blue); }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <h1>Labo de <span>rotations</span></h1>
+      <p class="sub">Place le ballon et les voitures. Le labo te dit qui doit challenger, qui couvre, et repère les erreurs de placement en 2v2.</p>
+    </div>
+  </header>
+
+  <section class="stage">
+    <div class="board"><canvas id="field" aria-label="Terrain vu de dessus. Ton équipe (bleue) défend en bas et attaque vers le haut."></canvas></div>
+    <p class="hint" id="hint">Glisse le ballon, ton duo bleu et les adversaires orange. Ton équipe attaque vers le haut.</p>
+    <div class="legend">
+      <span><i style="background:var(--blue)"></i>Ton équipe</span>
+      <span><i style="background:var(--orange)"></i>Adversaires</span>
+      <span><i style="background:var(--boost)"></i>Gros boost (100)</span>
+      <span>Pointillés : où aller · Tirets fins : rotation après la touche</span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="box" id="scenarioBox">
+      <p class="label">Situations</p>
+      <div class="chips" id="scenarios"></div>
+      <div class="toggles">
+        <label><input type="checkbox" id="tOpp" checked> Adversaires</label>
+        <label><input type="checkbox" id="tBoost" checked> Pads de boost</label>
+        <label><input type="checkbox" id="tRot" checked> Rotation après la touche</label>
+      </div>
+    </div>
+
+    <div class="box situation">
+      <span class="phase" id="phase">Milieu</span>
+      <span class="meta" id="meta"></span>
+    </div>
+
+    <div class="players" id="players"></div>
+
+    <div class="box">
+      <p class="label">Lecture du placement</p>
+      <ul class="warns" id="warns"></ul>
+    </div>
+
+    <details class="box rules">
+      <summary>Les 5 règles de la rotation</summary>
+      <ol>
+        <li>Un seul joueur va au ballon. L'autre joue le ballon suivant.</li>
+        <li>Après ta touche, reviens par le poteau arrière, côté opposé au ballon, jamais en ligne droite vers ton but.</li>
+        <li>En 2v2, le 2e homme est à la fois soutien et dernier défenseur : il ne monte jamais au niveau du 1er.</li>
+        <li>Recharge en tournant : les petits pads (12) sur ton chemin valent mieux qu'un détour pour un gros pad.</li>
+        <li>Si l'adversaire arrive avant toi, défends en ombre : recule face au jeu au lieu de foncer.</li>
+      </ol>
+    </details>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const F = { hw: 4096, hl: 5120, corner: 1152, goalW: 893, goalD: 880 };
+  const VIEW = { hw: 4396, hl: 6200 };
+  const BIG = [[-3072,-4096],[3072,-4096],[-3584,0],[3584,0],[-3072,4096],[3072,4096]];
+  const SMALL = [[0,-4240],[-1792,-4184],[1792,-4184],[-940,-3308],[940,-3308],[0,-2816],[-3584,-2484],[3584,-2484],[-1788,-2300],[1788,-2300],[-2048,-1036],[0,-1024],[2048,-1036],[-1024,0],[1024,0],[-2048,1036],[0,1024],[2048,1036],[-1788,2300],[1788,2300],[-3584,2484],[3584,2484],[0,2816],[-940,3310],[940,3308],[-1792,4184],[1792,4184],[0,4240]];
+  const THIRD = 1707;
+  const NAMES = ['Toi', 'Coéquipier'];
+  const TAGS = ['TOI', '2'];
+  const RANK_LABEL = ['1er homme · au ballon', '2e homme · soutien et couverture'];
+
+  const SCENARIOS = {
+    kickoff: { name: "Coup d'envoi", ball: [0,0], blue: [[-2048,-2560,33],[256,-3840,33]], orange: [[2048,2560],[-256,3840]] },
+    attack: { name: 'Attaque en coin', ball: [2900,3800], blue: [[2200,2500,60],[-500,-200,55]], orange: [[1400,4700],[2600,1500]] },
+    defense: { name: 'Défense dans le coin', ball: [-3000,-3900], blue: [[-1500,-3000,50],[900,-4500,80]], orange: [[-2600,-2700],[500,-900]] },
+    counter: { name: 'Contre-attaque', ball: [200,-300], blue: [[900,2600,10],[-1200,-2400,60]], orange: [[400,700],[-2000,1500]] },
+    double: { name: 'Erreur : double commit', ball: [-500,900], blue: [[-900,-200,50],[400,-100,60]], orange: [[-300,2400],[800,4300]] },
+    high: { name: 'Erreur : 2e homme trop haut', ball: [1800,3600], blue: [[1000,2500,40],[-1600,2600,55]], orange: [[1300,4700],[-2400,700]] },
+  };
+
+  const state = {
+    ball: { x: 0, y: 0 }, blue: [], orange: [],
+    showOpp: true, showBoost: true, showRot: true,
+    scenario: 'attack',
+  };
+
+  function load(key) {
+    const s = SCENARIOS[key];
+    state.scenario = key;
+    state.ball = { x: s.ball[0], y: s.ball[1] };
+    state.blue = s.blue.map(([x, y, boost]) => ({ x, y, boost }));
+    state.orange = s.orange.map(([x, y]) => ({ x, y }));
+  }
+
+  // ---------- géométrie ----------
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const norm = v => { const l = Math.hypot(v.x, v.y) || 1; return { x: v.x / l, y: v.y / l }; };
+  const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const speed = boost => 1250 + boost * 9; // uu/s moyen estimé
+  const fmtS = s => s.toFixed(1).replace('.', ',') + ' s';
+  const fmtUU = d => Math.round(d).toLocaleString('fr-FR') + ' uu';
+
+  // ---------- analyse 2v2 ----------
+  function analyze() {
+    const b = state.ball;
+    const sgn = b.x >= 0 ? 1 : -1;
+    const ownGoal = { x: 0, y: -F.hl }, oppGoal = { x: 0, y: F.hl };
+    const phase = b.y < -THIRD ? 'def' : b.y > THIRD ? 'att' : 'mid';
+
+    const info = state.blue.map((p, i) => {
+      const d = dist(p, b);
+      const ahead = p.y - b.y; // > 0 : le joueur est devant le ballon (mauvais côté)
+      let eff = d;
+      if (ahead > 0) eff += ahead * 1.6 + 600;
+      if (p.boost < 15) eff += 500;
+      return { p, i, name: NAMES[i], d, ahead, eff, t: eff / speed(p.boost) };
+    });
+    const [first, second] = [...info].sort((a, c) => a.eff - c.eff);
+    first.rank = 0; second.rank = 1;
+
+    let oppT = Infinity;
+    if (state.showOpp) for (const o of state.orange) oppT = Math.min(oppT, dist(o, b) / 1600);
+
+    const toGoal = norm({ x: ownGoal.x - b.x, y: ownGoal.y - b.y });
+    const toOpp = norm({ x: oppGoal.x - b.x, y: oppGoal.y - b.y });
+    const backPost = { x: -sgn * 750, y: -4900 };
+
+    // 1er homme
+    if (first.ahead > 500) {
+      first.kind = 'recover';
+      first.target = backPost;
+      first.ctrl = { x: -sgn * 3200, y: (first.p.y + backPost.y) / 2 };
+      first.action = "Repli d'urgence au poteau arrière";
+      first.detail = "Aucun de vous deux n'est du bon côté du ballon. Redescends par le côté opposé au ballon, puis défends face au jeu.";
+    } else if (oppT < first.t * 0.65 && b.y < 2500) {
+      first.kind = 'shadow';
+      first.target = { x: b.x + toGoal.x * 1500, y: b.y + toGoal.y * 1500 };
+      first.action = 'Défense en ombre';
+      first.detail = "L'adversaire arrive avant toi. Recule entre le ballon et ton but, reste face au jeu et attends son erreur.";
+    } else {
+      first.kind = 'challenge';
+      first.target = { ...b };
+      first.ctrl = { x: b.x - toOpp.x * 900, y: b.y - toOpp.y * 900 };
+      if (phase === 'att') {
+        first.action = 'Tire ou centre';
+        first.detail = "Tu es le plus proche et du bon côté du ballon. Mets la pression ou tire, puis redescends vite : en 2v2, ton coéquipier est seul derrière.";
+      } else if (phase === 'def') {
+        first.action = 'Dégage vers le mur';
+        first.detail = "Dégage vers les côtés, jamais au centre devant ton but. Si tu ne peux pas, ralentis le jeu.";
+      } else {
+        first.action = 'Challenge le ballon';
+        first.detail = "Va au ballon le premier. Cherche un 50/50 propre ou une passe vers l'avant : ton coéquipier couvre derrière.";
+      }
+    }
+
+    // 2e homme : soutien et dernier défenseur à la fois
+    if (phase === 'def' || first.kind !== 'challenge') {
+      if (first.kind === 'recover') {
+        const t = lerp(b, { x: 0, y: -5000 }, 0.6);
+        second.target = { x: clamp(t.x * 0.6, -2500, 2500), y: clamp(t.y, -4800, -1500) };
+        second.action = 'Rentre défendre';
+        second.detail = "Ton coéquipier est hors jeu. C'est toi le défenseur le plus proche : reviens entre le ballon et le but.";
+      } else if (first.kind === 'shadow') {
+        second.target = backPost;
+        second.action = 'Couvre le poteau arrière';
+        second.detail = "Ton coéquipier temporise en ombre. Reste au poteau arrière pour couvrir un tir croisé.";
+      } else {
+        const t = lerp(b, { x: 0, y: -5000 }, 0.6);
+        second.target = { x: clamp(t.x * 0.6, -2500, 2500), y: clamp(t.y, -4800, -2500) };
+        second.action = 'Prêt pour le suivi';
+        second.detail = "Reste entre le ballon et le but, à bonne distance. Si le 1er homme rate, c'est toi qui joues.";
+      }
+    } else if (phase === 'mid') {
+      second.target = { x: clamp(b.x * 0.3 - sgn * 1200, -3000, 3000), y: clamp(b.y - 3000, -4600, -1000) };
+      second.action = 'Soutien et couverture';
+      second.detail = "Reste derrière le ballon, décalé du côté opposé. Tu joues le prochain ballon, et tu es le dernier rempart.";
+    } else {
+      second.target = { x: clamp(-b.x * 0.4, -2500, 2500), y: clamp(b.y - 3500, -1200, 1200) };
+      second.action = 'Soutien autour du milieu';
+      second.detail = "Tiens la zone du milieu de terrain. Tu récupères les dégagements, mais tu restes assez bas pour stopper une contre-attaque.";
+    }
+    if (second.p.boost < 30 && first.kind === 'challenge' && phase !== 'def') {
+      const pads = BIG.map(([x, y]) => ({ x, y })).filter(p => p.y <= Math.min(0, b.y - 2000));
+      if (pads.length) {
+        pads.sort((a, c) => dist(a, second.p) - dist(c, second.p));
+        second.target = pads[0];
+        second.action = 'Recharge en boost';
+        second.detail = `Seulement ${second.p.boost} de boost : prends ce gros pad, puis replace-toi derrière le ballon.`;
+      }
+    } else if (second.p.boost < 20) second.detail += ' Ramasse les petits pads sur le chemin.';
+
+    for (const x of info) x.tt = dist(x.p, x.target) / speed(x.p.boost);
+
+    // rotation du 1er homme après sa touche
+    let rot = null;
+    if (first.kind === 'challenge') {
+      rot = [b, { x: clamp(-sgn * 3000, -3700, 3700), y: b.y - 1800 }, { x: -sgn * 1000, y: clamp(b.y - 4200, -4800, -800) }];
+    }
+
+    // lecture des erreurs
+    const W = [];
+    const near = info.filter(x => x.d < 1500 && x.ahead < 300);
+    const noCover = info.every(x => x.p.y > b.y - 400);
+    if (near.length === 2) {
+      W.push({ lvl: 'bad', t: `Double commit : vous visez le ballon tous les deux. ${second.name} doit lâcher et reculer, sinon votre but est vide.` });
+    }
+    if (noCover) W.push({ lvl: 'bad', t: "Personne derrière le ballon : la moindre perte de balle donne un 2 contre 0 à l'adversaire." });
+    else if (phase !== 'def' && second.p.y > b.y - 2000) W.push({ lvl: 'warn', t: `${second.name} : trop près du ballon pour le 2e homme. Recule, tu es le seul à couvrir.` });
+    if (!noCover && phase === 'att' && info.every(x => x.p.y > 1200)) W.push({ lvl: 'bad', t: "Vous êtes tous les deux dans le camp adverse : un seul dégagement et c'est un 2 contre 0." });
+    if (dist(info[0].p, info[1].p) < 1000 && near.length < 2) W.push({ lvl: 'warn', t: 'Vous êtes collés : écartez-vous pour couvrir plus de terrain.' });
+    for (const x of info) if (x.ahead > 800 && b.y < 1000) W.push({ lvl: 'warn', t: `${x.name} : devant le ballon. Reviens par le côté opposé, pas en ligne droite vers le ballon.` });
+    if (first.kind === 'challenge' && first.p.boost < 20) W.push({ lvl: 'warn', t: `${first.name} va au ballon avec ${first.p.boost} de boost. Prévois de recharger juste après la touche.` });
+    if (!W.length) W.push({ lvl: 'good', t: 'Duo bien placé : un joueur au ballon, un en soutien derrière lui.' });
+
+    return { phase, info, first, second, oppT, rot, warns: W };
+  }
+
+  // ---------- rendu canvas ----------
+  const canvas = document.getElementById('field');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, s = 1, dpr = 1, C = {};
+  const sx = x => (x + VIEW.hw) * s;
+  const sy = y => (VIEW.hl - y) * s;
+  const toWorld = (px, py) => ({ x: px / s - VIEW.hw, y: VIEW.hl - py / s });
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['fg','muted','blue','blue-soft','orange','orange-soft','boost','turf','turf-zone','turf-line','turf-edge','panel','bg'])
+      C[k] = cs.getPropertyValue('--' + k).trim();
+  }
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    s = W / (VIEW.hw * 2);
+  }
+
+  function fieldPoly() {
+    const { hw: w, hl: l, corner: c, goalW: g, goalD: d } = F;
+    return [[-w+c,-l],[-g,-l],[-g,-l-d],[g,-l-d],[g,-l],[w-c,-l],[w,-l+c],[w,l-c],[w-c,l],[g,l],[g,l+d],[-g,l+d],[-g,l],[-w+c,l],[-w,l-c],[-w,-l+c]];
+  }
+
+  function drawField(an) {
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    const poly = fieldPoly();
+    ctx.beginPath();
+    poly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y)));
+    ctx.closePath();
+    ctx.fillStyle = C.turf; ctx.fill();
+    ctx.save(); ctx.clip();
+    const z = an.phase === 'def' ? [-F.hl - F.goalD, -THIRD] : an.phase === 'att' ? [THIRD, F.hl + F.goalD] : [-THIRD, THIRD];
+    ctx.fillStyle = an.phase === 'att' ? C['orange-soft'] : C['turf-zone'];
+    ctx.fillRect(0, sy(z[1]), W, sy(z[0]) - sy(z[1]));
+    ctx.fillStyle = C['blue-soft']; ctx.fillRect(sx(-F.goalW), sy(-F.hl), sx(F.goalW) - sx(-F.goalW), sy(-F.hl - F.goalD) - sy(-F.hl));
+    ctx.fillStyle = C['orange-soft']; ctx.fillRect(sx(-F.goalW), sy(F.hl + F.goalD), sx(F.goalW) - sx(-F.goalW), sy(F.hl) - sy(F.hl + F.goalD));
+    ctx.restore();
+
+    ctx.strokeStyle = C['turf-line']; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(sx(-F.hw), sy(0)); ctx.lineTo(sx(F.hw), sy(0)); ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx(0), sy(0), 1000 * s, 0, Math.PI * 2); ctx.stroke();
+    for (const side of [-1, 1]) {
+      ctx.strokeRect(sx(-2000), sy(side > 0 ? F.hl : -F.hl + 1300), sx(2000) - sx(-2000), 1300 * s);
+    }
+    ctx.setLineDash([4, 6]);
+    for (const y of [-THIRD, THIRD]) { ctx.beginPath(); ctx.moveTo(sx(-F.hw), sy(y)); ctx.lineTo(sx(F.hw), sy(y)); ctx.stroke(); }
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    poly.forEach(([x, y], i) => i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y)));
+    ctx.closePath();
+    ctx.strokeStyle = C['turf-edge']; ctx.lineWidth = 2.5; ctx.stroke();
+
+    ctx.fillStyle = C.muted;
+    ctx.font = `700 ${Math.max(10, 11 * W / 440)}px "Saira Condensed", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('BUT ADVERSE', sx(0), sy(F.hl + F.goalD + 160));
+    ctx.fillText('TON BUT', sx(0), sy(-F.hl - F.goalD - 160));
+    ctx.textAlign = 'left';
+    ctx.font = `600 ${Math.max(9, 9.5 * W / 440)}px "Saira Condensed", sans-serif`;
+    ctx.fillText('TIERS OFFENSIF', sx(-F.hw + 160), sy(THIRD + 200));
+    ctx.fillText('TIERS DÉFENSIF', sx(-F.hw + 160), sy(-THIRD - 200));
+
+    if (state.showBoost) {
+      for (const [x, y] of SMALL) { ctx.beginPath(); ctx.arc(sx(x), sy(y), Math.max(2, 70 * s), 0, Math.PI * 2); ctx.fillStyle = C.boost; ctx.globalAlpha = .55; ctx.fill(); }
+      ctx.globalAlpha = 1;
+      for (const [x, y] of BIG) {
+        const r = Math.max(5, 160 * s);
+        ctx.beginPath(); ctx.arc(sx(x), sy(y), r * 1.9, 0, Math.PI * 2); ctx.fillStyle = C.boost; ctx.globalAlpha = .18; ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(sx(x), sy(y), r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  function pathPts(x) {
+    const pts = [x.p];
+    if (x.ctrl) pts.push(x.ctrl);
+    pts.push(x.target);
+    return pts;
+  }
+
+  function strokeRoute(pts, color, width, dash, offset) {
+    ctx.beginPath();
+    ctx.moveTo(sx(pts[0].x), sy(pts[0].y));
+    if (pts.length === 3) ctx.quadraticCurveTo(sx(pts[1].x), sy(pts[1].y), sx(pts[2].x), sy(pts[2].y));
+    else ctx.lineTo(sx(pts[1].x), sy(pts[1].y));
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.lineDashOffset = -offset;
+    ctx.lineCap = 'round'; ctx.stroke(); ctx.setLineDash([]);
+    const a = pts[pts.length - 2], b = pts[pts.length - 1];
+    const ang = Math.atan2(sy(b.y) - sy(a.y), sx(b.x) - sx(a.x));
+    const L = 9;
+    ctx.beginPath();
+    ctx.moveTo(sx(b.x), sy(b.y));
+    ctx.lineTo(sx(b.x) - L * Math.cos(ang - .45), sy(b.y) - L * Math.sin(ang - .45));
+    ctx.lineTo(sx(b.x) - L * Math.cos(ang + .45), sy(b.y) - L * Math.sin(ang + .45));
+    ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  }
+
+  function drawCar(p, ang, color, tag, highlight) {
+    const L = Math.max(26, 470 * s), Wd = Math.max(16, 280 * s);
+    ctx.save();
+    ctx.translate(sx(p.x), sy(p.y)); ctx.rotate(ang);
+    if (highlight) { ctx.beginPath(); ctx.arc(0, 0, L * .85, 0, Math.PI * 2); ctx.strokeStyle = color; ctx.globalAlpha = .45; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.beginPath(); ctx.roundRect(-L / 2, -Wd / 2, L, Wd, Wd * .35);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = C.panel; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(L * .02, -Wd * .3, L * .26, Wd * .6, 3); ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fill();
+    ctx.restore();
+    if (!tag) return;
+    ctx.font = `800 italic ${Math.max(11, 12 * W / 440)}px "Saira Condensed", sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const ty = sy(p.y) - L * .8;
+    const tw = ctx.measureText(tag).width + 10;
+    ctx.fillStyle = C.panel; ctx.beginPath(); ctx.roundRect(sx(p.x) - tw / 2, ty - 9, tw, 18, 5); ctx.fill();
+    ctx.fillStyle = color; ctx.fillText(tag, sx(p.x), ty + 1);
+  }
+
+  function drawTarget(t, color, num) {
+    const r = Math.max(9, 210 * s);
+    ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), r, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.globalAlpha = .14; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `800 italic ${Math.max(10, 11 * W / 440)}px "Saira Condensed", sans-serif`;
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(num, sx(t.x), sy(t.y) + 1);
+  }
+
+  let an = null, dash = 0;
+  function draw() {
+    if (!W || !an) return;
+    readColors();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawField(an);
+
+    // lien entre les deux coéquipiers
+    const [p0, p1] = state.blue;
+    ctx.beginPath(); ctx.moveTo(sx(p0.x), sy(p0.y)); ctx.lineTo(sx(p1.x), sy(p1.y));
+    ctx.strokeStyle = C['blue-soft']; ctx.lineWidth = 6; ctx.stroke();
+
+    if (state.showRot && an.rot) strokeRoute(an.rot, C.muted, 1.4, [2, 6], dash * .5);
+    for (const x of an.info) {
+      if (x.kind !== 'challenge') drawTarget(x.target, C.blue, String(x.rank + 1));
+      strokeRoute(pathPts(x), C.blue, x.rank === 0 ? 2.6 : 2, [7, 6], dash);
+    }
+
+    if (state.showOpp) for (const o of state.orange) {
+      drawCar(o, Math.atan2(sy(state.ball.y) - sy(o.y), sx(state.ball.x) - sx(o.x)), C.orange, '', false);
+    }
+    for (const x of an.info) {
+      const nxt = (x.ctrl || x.target);
+      const ang = Math.atan2(sy(nxt.y) - sy(x.p.y), sx(nxt.x) - sx(x.p.x));
+      drawCar(x.p, ang, C.blue, TAGS[x.i], x.i === 0);
+    }
+
+    const br = Math.max(9, 150 * s);
+    ctx.beginPath(); ctx.arc(sx(state.ball.x), sy(state.ball.y), br * 1.7, 0, Math.PI * 2);
+    ctx.fillStyle = C.fg; ctx.globalAlpha = .1; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(sx(state.ball.x), sy(state.ball.y), br, 0, Math.PI * 2);
+    ctx.fillStyle = C.panel; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = C.fg; ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx(state.ball.x), sy(state.ball.y), br * .45, 0, Math.PI * 2); ctx.fillStyle = C.fg; ctx.fill();
+  }
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  function loop() {
+    if (!reduce.matches) { dash = (dash + .35) % 1000; draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- panneau ----------
+  const playersEl = document.getElementById('players');
+  const cards = [];
+  function buildCards() {
+    playersEl.innerHTML = '';
+    NAMES.forEach((n, i) => {
+      const el = document.createElement('article');
+      el.className = 'pcard' + (i === 0 ? ' me' : '');
+      el.innerHTML = `
+        <div class="pc-head"><span class="rank">1</span><span class="pname">${n}</span><span class="role"></span></div>
+        <p class="action"></p>
+        <p class="detail"></p>
+        <div class="stats"><span>Ballon <b class="sd"></b></span><span>Trajet <b class="st"></b></span></div>
+        <div class="boostrow"><label for="boost${i}">Boost</label><input type="range" id="boost${i}" min="0" max="100" step="1"><output for="boost${i}"></output></div>`;
+      const input = el.querySelector('input');
+      input.addEventListener('input', () => { state.blue[i].boost = +input.value; update(); });
+      playersEl.appendChild(el);
+      cards[i] = el;
+    });
+  }
+
+  function update() {
+    an = analyze();
+    const ph = document.getElementById('phase');
+    ph.textContent = { def: 'Défense', mid: 'Milieu', att: 'Attaque' }[an.phase];
+    ph.className = 'phase ' + an.phase;
+    let meta = `1er homme au ballon ≈ ${fmtS(an.first.t)}`;
+    if (state.showOpp && isFinite(an.oppT)) meta += ` · adversaire ≈ ${fmtS(an.oppT)}`;
+    document.getElementById('meta').textContent = meta;
+
+    for (const x of an.info) {
+      const el = cards[x.i];
+      el.querySelector('.rank').textContent = x.rank + 1;
+      el.querySelector('.role').textContent = RANK_LABEL[x.rank];
+      el.querySelector('.action').textContent = x.action;
+      el.querySelector('.detail').textContent = x.detail;
+      el.querySelector('.sd').textContent = fmtUU(x.d);
+      el.querySelector('.st').textContent = fmtS(x.tt);
+      const input = el.querySelector('input');
+      if (document.activeElement !== input) input.value = x.p.boost;
+      el.querySelector('output').textContent = x.p.boost;
+    }
+
+    const wl = document.getElementById('warns');
+    wl.innerHTML = '';
+    const lbl = { bad: 'Erreur', warn: 'Attention', good: 'Bien' };
+    for (const w of an.warns) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="tag ${w.lvl}">${lbl[w.lvl]}</span><span></span>`;
+      li.lastChild.textContent = w.t;
+      wl.appendChild(li);
+    }
+    document.querySelectorAll('#scenarios button').forEach(b => b.classList.toggle('on', b.dataset.k === state.scenario));
+    if (reduce.matches) draw();
+  }
+
+  const sc = document.getElementById('scenarios');
+  for (const [k, v] of Object.entries(SCENARIOS)) {
+    const b = document.createElement('button');
+    b.textContent = v.name; b.dataset.k = k;
+    b.addEventListener('click', () => { load(k); update(); });
+    sc.appendChild(b);
+  }
+  for (const [id, key] of [['tOpp', 'showOpp'], ['tBoost', 'showBoost'], ['tRot', 'showRot']]) {
+    document.getElementById(id).addEventListener('change', e => { state[key] = e.target.checked; update(); });
+  }
+
+  // ---------- déplacement ----------
+  let drag = null;
+  function pick(px, py) {
+    const items = [state.ball, ...state.blue, ...(state.showOpp ? state.orange : [])];
+    let best = null, bd = 26;
+    for (const o of items) {
+      const d = Math.hypot(sx(o.x) - px, sy(o.y) - py);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  }
+  function local(e) { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  function clampWorld(p) {
+    const inGoal = Math.abs(p.x) < F.goalW;
+    return { x: clamp(p.x, -F.hw + 120, F.hw - 120), y: clamp(p.y, inGoal ? -F.hl - F.goalD + 150 : -F.hl + 120, inGoal ? F.hl + F.goalD - 150 : F.hl - 120) };
+  }
+  canvas.addEventListener('pointerdown', e => {
+    const [px, py] = local(e);
+    drag = pick(px, py);
+    if (drag) { canvas.setPointerCapture(e.pointerId); canvas.style.cursor = 'grabbing'; }
+  });
+  canvas.addEventListener('pointermove', e => {
+    const [px, py] = local(e);
+    if (drag) {
+      const w = clampWorld(toWorld(px, py));
+      drag.x = w.x; drag.y = w.y;
+      state.scenario = null;
+      update();
+    } else {
+      canvas.style.cursor = pick(px, py) ? 'grab' : 'default';
+    }
+  });
+  const end = () => { drag = null; canvas.style.cursor = 'default'; };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+
+  // ---------- démarrage ----------
+  load('attack');
+  buildCards();
+  new ResizeObserver(() => { resize(); draw(); }).observe(canvas);
+  resize();
+  update();
+  draw();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts) document.fonts.ready.then(draw);
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>
